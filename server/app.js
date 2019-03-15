@@ -3,6 +3,7 @@ const path = require('path');
 const utils = require('./lib/hashUtils');
 const partials = require('express-partials');
 const bodyParser = require('body-parser');
+const parseCookies = require('./middleware/cookieParser');
 const Auth = require('./middleware/auth');
 const models = require('./models');
 
@@ -14,97 +15,100 @@ app.use(partials());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../public')));
+app.use(parseCookies);
+app.use(Auth.createSession);
 
 
 
-app.get('/', 
-(req, res) => {
-  res.render('index');
-});
+app.get('/',
+  (req, res) => {
+    res.render('index');
+  });
 
-app.get('/create', 
-(req, res) => {
-  res.render('index');
-});
+app.get('/create',
+  (req, res) => {
+    res.render('index');
+  });
 
-app.get('/links', 
-(req, res, next) => {
-  models.Links.getAll()
-    .then(links => {
-      res.status(200).send(links);
-    })
-    .error(error => {
-      res.status(500).send(error);
-    });
-});
-
-app.post('/links', 
-(req, res, next) => {
-  var url = req.body.url;
-  if (!models.Links.isValidUrl(url)) {
-    // send back a 404 if link is not valid
-    return res.sendStatus(404);
-  }
-
-  return models.Links.get({ url })
-    .then(link => {
-      if (link) {
-        throw link;
-      }
-      return models.Links.getUrlTitle(url);
-    })
-    .then(title => {
-      return models.Links.create({
-        url: url,
-        title: title,
-        baseUrl: req.headers.origin
+app.get('/links',
+  (req, res, next) => {
+    models.Links.getAll()
+      .then(links => {
+        res.status(200).send(links);
+      })
+      .error(error => {
+        res.status(500).send(error);
       });
-    })
-    .then(results => {
-      return models.Links.get({ id: results.insertId });
-    })
-    .then(link => {
-      throw link;
-    })
-    .error(error => {
-      res.status(500).send(error);
-    })
-    .catch(link => {
-      res.status(200).send(link);
-    });
-});
+  });
+
+app.post('/links',
+  (req, res, next) => {
+    var url = req.body.url;
+    if (!models.Links.isValidUrl(url)) {
+      // send back a 404 if link is not valid
+      return res.sendStatus(404);
+    }
+
+    return models.Links.get({ url })
+      .then(link => {
+        if (link) {
+          throw link;
+        }
+        return models.Links.getUrlTitle(url);
+      })
+      .then(title => {
+        return models.Links.create({
+          url: url,
+          title: title,
+          baseUrl: req.headers.origin
+        });
+      })
+      .then(results => {
+        return models.Links.get({ id: results.insertId });
+      })
+      .then(link => {
+        throw link;
+      })
+      .error(error => {
+        res.status(500).send(error);
+      })
+      .catch(link => {
+        res.status(200).send(link);
+      });
+  });
 
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
 
-app.post('/signup', 
-(req, res, next) => {
-  let { username, password } = req.body
-  return models.Users.create({username, password})
-    .then((successMsg) => {
-      res.render('/', (err) => {
-        res.status(201).location('/').send(successMsg);
+app.post('/signup',
+  (req, res, next) => {
+    let { username, password } = req.body;
+    return models.Users.create({ username, password })
+      .then((successMsg) => {
+        res.render('/', (err) => {
+          res.status(201).location('/').send(successMsg);
+        });
       })
-    })
-    .catch(err => {
-      res.render('/signup', (err) => {
-        res.status(500).location('/signup').send(err);
-      })
-    })
-})
+      .catch(err => {
+        res.render('/signup', (err) => {
+          res.status(404).location('/signup').send(err);
+        });
+      });
+  });
 
 app.post('/login',
-(req, res, next) => {
-  let { username = null, password: attempted } = req.body
-  return models.Users.get({ username })
-    .then(user => {
-      return models.Users.compare( attempted, user.password, user.salt )
-        .then(result => {
-          result ? res.status(201).location('/').send('Login Successful!') : res.status(500).location('/login').send('Lol try again');
-        })
-    }).catch(err => res.status(500).location('/login').send(err));
-})
+  (req, res, next) => {
+    let { username = null, password: attempted } = req.body;
+    return models.Users.get({ username })
+      .then(user => {
+        if (models.Users.compare(attempted, user.password, user.salt)) {
+          res.status(201).location('/').send('Login Successful!'); 
+        } else {
+          res.status(404).location('/login').send('Lol try again');
+        }
+      }).catch(err => res.status(404).location('/login').send(err));
+  });
 
 /************************************************************/
 // Handle the code parameter route last - if all other routes fail
