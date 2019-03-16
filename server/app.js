@@ -18,8 +18,6 @@ app.use(express.static(path.join(__dirname, '../public')));
 app.use(parseCookies);
 app.use(Auth.createSession);
 
-
-
 app.get('/',
   (req, res) => {
     res.render('index');

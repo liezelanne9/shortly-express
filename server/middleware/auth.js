@@ -8,10 +8,19 @@ module.exports.createSession = (req, res, next) => {
         return models.Sessions.get({ id: result.insertId })
           .then(resultsObj => {
             req.session = resultsObj;
-            req.cookies.shortlyid = resultsObj.hash;
+            res.cookie('shortlyid', resultsObj.hash);
             next();
           });
       }).catch(err => console.log('Session creation error', err));
+  } else if (!req.session) {
+      return models.Sessions.create()
+      .then(result => {
+        return models.Sessions.get({ id: result.insertId })
+          .then(resultsObj => {
+            req.session = resultsObj;
+            next();
+          })
+      })
   } else {
     next();
   }
@@ -20,4 +29,3 @@ module.exports.createSession = (req, res, next) => {
 /************************************************************/
 // Add additional authentication middleware functions below
 /************************************************************/
-
