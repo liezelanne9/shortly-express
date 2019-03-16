@@ -7,10 +7,20 @@ module.exports.createSession = (req, res, next) => {
       .then(result => {
         return models.Sessions.get({ id: result.insertId })
           .then(resultsObj => {
-            req.session = resultsObj;
             res.cookie('shortlyid', resultsObj.hash);
-            next();
-          });
+            req.session = resultsObj;
+            console.log(resultsObj);
+            models.Sessions.get({hash: req.session.hash})
+            .then(userId => {
+              req.session.userId = userId;
+              models.Users.get({id: userId})
+                .then(username => {
+                  req.session.user.username = username;
+                  next();
+                }).catch(err => console.log('username not found'));
+            }).catch(err => console.log('No user ID found'));
+        });
+        next();
       }).catch(err => console.log('Session creation error', err));
   } else if (!req.session) {
     return models.Sessions.create()
@@ -18,9 +28,18 @@ module.exports.createSession = (req, res, next) => {
         return models.Sessions.get({ id: result.insertId })
           .then(resultsObj => {
             req.session = resultsObj;
+              models.Sessions.get({hash: req.session.hash})
+                .then(userId => {
+                  req.session.userId = userId;
+                  models.Users.get({id: userId})
+                    .then(username => {
+                      req.session.user.username = username;
+                      next();
+                    }).catch(err => console.log('username not found'));
+                }).catch(err => console.log('No user ID found'));
+            });
             next();
-          });
-      });
+        }).catch(err => console.log('Session creation error', err));
   } else {
     next();
   }
