@@ -84,9 +84,14 @@ app.post('/signup',
     let { username, password } = req.body;
     return models.Users.create({ username, password })
       .then((successMsg) => {
-        res.render('/', (err) => {
-          res.status(201).location('/').send(successMsg);
-        });
+        req.session.userId = successMsg.insertId;
+        req.session.user = { username };
+        return models.Sessions.update({ hash: req.session.hash }, { userId: successMsg.insertId })
+          .then(() => {
+            res.render('/', (err) => {
+              res.status(201).location('/').send(successMsg);
+            });
+          });
       })
       .catch(err => {
         res.render('/signup', (err) => {
@@ -101,7 +106,7 @@ app.post('/login',
     return models.Users.get({ username })
       .then(user => {
         if (models.Users.compare(attempted, user.password, user.salt)) {
-          res.status(201).location('/').send('Login Successful!'); 
+          res.status(201).location('/').send('Login Successful!');
         } else {
           res.status(404).location('/login').send('Lol try again');
         }
