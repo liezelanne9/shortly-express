@@ -18,7 +18,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(parseCookies);
 app.use(Auth.createSession);
-// app.use(pathRouter);
+app.use(pathRouter);
 
 app.get('/',
   (req, res) => {
@@ -81,6 +81,11 @@ app.post('/links',
 // Write your authentication routes here
 /************************************************************/
 
+app.get('/signup',
+  (req, res) => {
+    res.render('signup');
+  });
+
 app.post('/signup',
   (req, res, next) => {
     let { username, password } = req.body;
@@ -91,15 +96,20 @@ app.post('/signup',
         return models.Sessions.update({ hash: req.session.hash }, { userId: successMsg.insertId })
           .then(() => {
             res.render('/', (err) => {
-              res.status(201).location('/').send(successMsg);
+              res.status(201).redirect('/');
             });
           });
       })
       .catch(err => {
-        res.render('/signup', (err) => {
-          res.status(404).location('/signup').send(err);
+        res.render('/signup', err => {
+          res.status(404).redirect('/signup');
         });
       });
+  });
+
+app.get('/login',
+  (req, res) => {
+    res.render('login');
   });
 
 app.post('/login',
@@ -111,11 +121,11 @@ app.post('/login',
           req.session.userId = user.id;
           req.session.user = { username };
           return models.Sessions.update({ hash: req.session.hash }, { userId: user.id })
-            .then(() => res.status(201).location('/').send('Login Successful!'));
+            .then(() => res.status(201).redirect('/'));
         } else {
-          res.status(404).location('/login').send('Lol try again');
+          res.status(404).redirect('/login');
         }
-      }).catch(err => res.status(404).location('/login').send(err));
+      }).catch(err => res.status(404).redirect('/login'));
   });
 
 app.get('/logout',
@@ -124,7 +134,7 @@ app.get('/logout',
     models.Sessions.delete({ hash: req.session.hash })
       .then(() => {
         delete req.session;
-        res.cookie('shortlyid', '').status(200).location('/').send('Bye!');
+        res.cookie('shortlyid', '').status(200).redirect('/');
       }).catch(err => res.status(404).send(err));
   });
 

@@ -1,11 +1,14 @@
 const models = require('../models');
 
 function pathRouter(req, res, next) {
-  if (req.path === '/') {
-    if (models.Sessions.isLoggedIn(req.session)) {
+  if (req.path !== '/login' && req.path !== '/signup') {
+    if (!models.Sessions.isLoggedIn(req.session)) {
+      res.redirect('/login');
+    } else {
       next();
     }
-    res.redirect('/login');
+  } else {
+    next();
   }
 }
 
