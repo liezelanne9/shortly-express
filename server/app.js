@@ -3,6 +3,7 @@ const path = require('path');
 const utils = require('./lib/hashUtils');
 const partials = require('express-partials');
 const bodyParser = require('body-parser');
+const pathRouter = require('./middleware/pathRouter');
 const parseCookies = require('./middleware/cookieParser');
 const Auth = require('./middleware/auth');
 const models = require('./models');
@@ -17,6 +18,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(parseCookies);
 app.use(Auth.createSession);
+// app.use(pathRouter);
 
 app.get('/',
   (req, res) => {
@@ -106,11 +108,24 @@ app.post('/login',
     return models.Users.get({ username })
       .then(user => {
         if (models.Users.compare(attempted, user.password, user.salt)) {
-          res.status(201).location('/').send('Login Successful!');
+          req.session.userId = user.id;
+          req.session.user = { username };
+          return models.Sessions.update({ hash: req.session.hash }, { userId: user.id })
+            .then(() => res.status(201).location('/').send('Login Successful!'));
         } else {
           res.status(404).location('/login').send('Lol try again');
         }
       }).catch(err => res.status(404).location('/login').send(err));
+  });
+
+app.get('/logout',
+  (req, res, next) => {
+    // remove req.session and cookie 
+    models.Sessions.delete({ hash: req.session.hash })
+      .then(() => {
+        delete req.session;
+        res.cookie('shortlyid', '').status(200).location('/').send('Bye!');
+      }).catch(err => res.status(404).send(err));
   });
 
 /************************************************************/
